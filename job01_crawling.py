@@ -71,15 +71,17 @@ driver.execute_script('arguments[0].click();',button_ok)
 time.sleep(1.5)
 
 
-nMovie = 10
-nScroll = 2
+nMovie = 1000
+nScroll = 25
+nReview = 30
+
 for i in range(nScroll):
     driver.execute_script("window.scrollTo(0,document.documentElement.scrollHeight);")
     time.sleep(1)
 
 list_review_url = []
 movie_titles = []
-for i in range(1,nMovie+1):
+for i in range(1,nMovie):
     base = driver.find_element(By.XPATH,f'//*[@id="contents"]/div/div/div[3]/div[2]/div[{i}]/a').get_attribute("href")
     list_review_url.append(f"{base}/reviews")
     title = driver.find_element(By.XPATH,f'//*[@id="contents"]/div/div/div[3]/div[2]/div[{i}]/div/div[1]').text
@@ -92,16 +94,18 @@ print(movie_titles[:5])
 print(len(movie_titles))
 
 reviews = []
-for url in list_review_url:
-    driver = webdriver.Chrome(service=service,options=options)
+for idx, url in enumerate(list_review_url[400:450]):
+    # driver = webdriver.Chrome(service=service,options=options)
     driver.get(url)
     time.sleep(0.5)
     review = ''
-    for i in range(1,10):
-        review_title_xpath = '//*[@id="contents"]/div[2]/div[2]/div[{}]/div/div[3]/a[1]/div'.format(i)
-        review_more_xpath = '//*[@id="contents"]/div[2]/div[2]/div[{}]/div/div[3]/div/button'.format(i)
+    for i in range(1,nReview+1):
 
-        try:
+        review_title_xpath = '//*[@id="contents"]/div[2]/div[2]/div[{}]/div/div[3]/a[1]/div'.format(i)
+        # review_more_xpath = '//*[@id="contents"]/div[2]/div[2]/div[{}]/div/div[3]/div/button'.format(i) # 더보기
+        review_more_xpath = '//*[@id="contents"]/div[2]/div[2]/div[{}]/div/div[3]/div/button'.format(i) # 더보기
+
+        try:    # 더보기가 없는 경우
             review_more = driver.find_element(By.XPATH,review_more_xpath)
             driver.execute_script('arguments[0].click();',review_more)
             time.sleep(1)
@@ -109,9 +113,18 @@ for url in list_review_url:
             review = driver.find_element(By.XPATH,review_xpath).text
             driver.back()
             time.sleep(1)
-        except:
-            review = review + driver.find_element(By.XPATH,review_title_xpath).text
-    time.sleep(3)
+
+        except NoSuchElementException as e:
+            print('더보기',e)
+            try:
+                review = review + ' ' + driver.find_element(By.XPATH,review_title_xpath).text
+            except:
+                print('review title error')
+        except StaleElementReferenceException as e:
+            print('stale',e)
+            time.sleep(1)
+        except :
+            print('error')
     # driver.close()
     print(review)
     reviews.append(review)
@@ -119,5 +132,11 @@ print(reviews[:5])
 print(len(reviews))
 
 # h tag는 헤드라인을 의미 div는 구역  p는 문단
+
+
+df = pd.DataFrame({'titles':movie_titles[400:450],'reviews':reviews})
+today = datetime.datetime.now().strftime('%Y%m%d')
+# df.to_csv('./crawling_data/reviews_{}.csv'.format(today),index=False)
+df.to_csv('./crawling_data/reviews_450.csv',index=False)
 
 time.sleep(1)
